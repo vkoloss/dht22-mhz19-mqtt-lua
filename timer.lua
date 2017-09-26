@@ -17,8 +17,10 @@ client_ip=""
 client_netmask=""
 client_gateway=""
 
---- INTERVAL ---
-period = 30000
+--- DOMOTICZ ---
+temp_hum_idx = 3
+co2_idx=4
+refresh_period = 30000
 
 --################
 --# END settings #
@@ -67,7 +69,8 @@ function loop()
         tmr.stop(0)
         m:connect( mqtt_broker_ip , mqtt_broker_port, 0, function(conn)
             print("Connected to MQTT")
-            tmr.alarm(0, period, 1, function() pub() end)
+            pub()
+            tmr.alarm(0, refresh_period, 1, function() pub() end)
         end 
         )
     else
@@ -77,16 +80,14 @@ end
 
 function pub()
     get_sensor_Data()
-    m:publish("domoticz/in", "{\"idx\": 3, \"svalue\": \""..temperature..";"..humidity..";0\"}", 0, 0, function(conn)
-        --m:publish("stat/room/humidity", humidity, 0, 0, function(conn)             
-            mhz19:measure(function(mhz)
-                print("CO2: "..mhz)
-                m:publish("domoticz/in", "{\"idx\": 4, \"nvalue\": "..mhz.."}", 0, 0, function(conn)        
-                end)
+    m:publish("domoticz/in", "{\"idx\": "..temp_hum_idx..", \"svalue\": \""..temperature..";"..humidity..";0\"}", 0, 0, function(conn)           
+        mhz19:measure(function(mhz)
+            print("CO2: "..mhz)
+            m:publish("domoticz/in", "{\"idx\": "..co2_idx..", \"nvalue\": "..mhz.."}", 0, 0, function(conn)        
             end)
-        --end)
+        end)
     end)
 end
         
-tmr.alarm(0, 100, 1, function() loop() end)
+tmr.alarm(0, 1000, 1, function() loop() end)
 

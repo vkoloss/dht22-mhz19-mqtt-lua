@@ -1,31 +1,33 @@
-local mhz19 = {timer = 1, timeout = 1, altUart = 0}
+local mhz19 = {timer = 1, timeout = 2, altUart = 1}
 
 function mhz19:measure(callback)
 -- timeout and restore UART
-    tmr.alarm(self.timer, 
-        self.timeout*1000, 0,
-        function()
-            uart.alt(0)
-            uart.setup(0, 115200, 8, uart.PARITY_NONE, uart.STOPBITS_1, 1)
-            uart.on('data')
-        end)
-    uart.on('data', 9,
-        function(data)
-            -- unregister uart.on callback
-            uart.on('data')
-            tmr.stop(self.timer)
-            uart.alt(0)
-            uart.setup(0, 115200, 8, uart.PARITY_NONE, uart.STOPBITS_1, 1)
-            -- First two bytes are control bytes 0xFF && 0x86
-            local a,b = string.byte(data,1,2)
-            if (a==tonumber('FF',16)) and (b==tonumber('86',16)) then
-                local high,low = string.byte(data,3,4)
-                local co2value = high * 256 + low
-                callback(co2value)
-            else
-                callback("null")
-            end
-        end, 0)
+tmr.alarm(self.timer, self.timeout*1000, 0,
+function()
+    uart.alt(0)
+    uart.setup(0, 115200, 8, uart.PARITY_NONE, uart.STOPBITS_1, 1)
+    uart.on('data')
+    print("Timed out. Restored UART.")
+    --callback("null")
+end)
+
+uart.on('data', 9,
+    function(data)
+        -- unregister uart.on callback
+        uart.on('data')
+        tmr.stop(self.timer)
+        uart.alt(0)
+        uart.setup(0, 115200, 8, uart.PARITY_NONE, uart.STOPBITS_1, 1)
+        -- First two bytes are control bytes 0xFF && 0x86
+        local a,b = string.byte(data,1,2)
+        if (a==tonumber('FF',16)) and (b==tonumber('86',16)) then
+            local high,low = string.byte(data,3,4)
+            local co2value = high * 256 + low
+            callback(co2value)
+        else
+            callback("null")
+        end
+    end, 0)
 
     uart.alt(self.altUart)
     uart.setup(0, 9600, 8, uart.PARITY_NONE, uart.STOPBITS_1, 0)
